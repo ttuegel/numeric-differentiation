@@ -1,0 +1,31 @@
+name:                numeric-differentiation
+version:             0.1.0.0
+synopsis:            Algorithms for numeric differentiation with error estimates
+homepage:            https://github.com/ttuegel/numeric-differentiation
+license:             GPL-3
+license-file:        LICENSE
+author:              Thomas Tuegel
+maintainer:          ttuegel@gmail.com
+copyright:           (c) 2016 Thomas Tuegel
+category:            Math
+build-type:          Simple
+extra-source-files:  ChangeLog.md
+cabal-version:       >=1.10
+
+library
+  exposed-modules:
+    Bounded
+    Numeric.Differentiation
+    Rounded
+    Scalar
+  other-extensions:
+    FlexibleContexts
+    MultiParamTypeClasses
+    RankNTypes
+    RecordWildCards
+    TypeFamilies
+  build-depends:
+      base >= 4.8 && < 4.10
+    , ieee754 == 0.7.*
+  hs-source-dirs: src
+  default-language: Haskell2010
