@@ -11,17 +11,17 @@ import Bounded
 class Rounded a where
 
     -- | An estimate of the rounding error of a value.
-    rounded :: a -> Bound a
+    roundingError :: a -> Bound a
 
 
 instance Rounded Float where
-    rounded x = abs x * epsilon
+    roundingError x = abs x * epsilon
 
 instance Rounded Double where
-    rounded x = abs x * epsilon
+    roundingError x = abs x * epsilon
 
 instance Rounded CFloat where
-    rounded x = abs x * epsilon
+    roundingError x = abs x * epsilon
 
 instance Rounded CDouble where
-    rounded x = abs x * epsilon
+    roundingError x = abs x * epsilon

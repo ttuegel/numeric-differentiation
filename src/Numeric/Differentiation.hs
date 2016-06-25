@@ -29,15 +29,15 @@ central f x h0 =
                     scale_ (4.0 / 3.0) (fph - fmh) - scale_ (1.0 / 3.0) result3
 
                 -- rounding error in 3-point rule
-                error3 = rounded fp1 + rounded fm1
+                error3 = roundingError fp1 + roundingError fm1
 
                 -- rounding error in 5-point rule
-                error5 = 2.0 * (rounded fph + rounded fmh) + error3
+                error5 = 2.0 * (roundingError fph + roundingError fmh) + error3
 
-                rounded3 = rounded result3
-                rounded5 = rounded result5
+                roundingError3 = roundingError result3
+                roundingError5 = roundingError result5
                 -- rounding error due to finite precision in x + h = O(eps * x)
-                errorPrec = max rounded3 rounded5 * abs (x / (h * h))
+                errorPrec = max roundingError3 roundingError5 * abs (x / (h * h))
 
                 result = scale (recip h) result5
 
