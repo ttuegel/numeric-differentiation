@@ -10,7 +10,7 @@ import Rounded
 import Scalar
 
 
-central :: ( BoundedAbove r, Bound r ~ x, BoundedAbove x
+central :: ( BoundedAbove r, Bound r ~ x, Rounded r, BoundedAbove x
            , Floating x, Ord x, Num r, Rounded x, Scalar x r
            ) =>
            (forall t. Traversable t => t x -> t r) -> x -> x -> (r, x)
@@ -28,18 +28,16 @@ central f x h0 =
                 result5 =
                     scale_ (4.0 / 3.0) (fph - fmh) - scale_ (1.0 / 3.0) result3
 
-                upperError = rounded . upperBound
-
                 -- rounding error in 3-point rule
-                error3 = upperError fp1 + upperError fm1
+                error3 = rounded fp1 + rounded fm1
 
                 -- rounding error in 5-point rule
-                error5 = 2.0 * (upperError fph + upperError fmh) + error3
+                error5 = 2.0 * (rounded fph + rounded fmh) + error3
 
-                upperError3 = upperError result3
-                upperError5 = upperError result5
+                rounded3 = rounded result3
+                rounded5 = rounded result5
                 -- rounding error due to finite precision in x + h = O(eps * x)
-                errorPrec = max upperError3 upperError5 * abs (x / (h * h))
+                errorPrec = max rounded3 rounded5 * abs (x / (h * h))
 
                 result = scale (recip h) result5
 
