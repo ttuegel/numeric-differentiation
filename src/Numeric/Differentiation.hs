@@ -109,7 +109,7 @@ forward f x h0 =
         forward_ h =
             let
                 fs@[f1, f2, f3, f4] =
-                    f [x + h / 4, x + h / 2, x + 3 * h / 4, x + h]
+                    f [x + h / 4, x + h / 2, x + (3 / 4) * h, x + h]
 
                 -- result using 2-point rule
                 result2 = scale_ 2 (f4 - f2)
