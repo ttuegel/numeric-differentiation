@@ -153,3 +153,11 @@ forward f x h0 =
       then (rOpt, errOpt)
       else (r0, err0)
 
+backward :: ( Floating x, Ord x, Scalar x r, Error r ~ x
+            , Num r, RoundingError r, TruncationError r ) =>
+            (forall t. Traversable t => t x -> t r)
+                -- ^ the function to differentiate
+         -> x  -- ^ evaluate the derivative at @x@
+         -> x  -- ^ initial step size
+         -> (r, Error r)  -- ^ result and error
+backward f x h0 = forward f x (negate h0)
