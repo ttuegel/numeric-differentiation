@@ -48,10 +48,13 @@ central f x h0 =
                 -- rounding error in 5-point rule
                 error5 = 2.0 * (roundingError fph + roundingError fmh) + error3
 
-                roundingError3 = roundingError result3 / abs h
-                roundingError5 = roundingError result5 / abs h
                 -- rounding error due to finite precision in x + h = O(eps * x)
-                errorPrec = max roundingError3 roundingError5 * abs (x / h)
+                errorPrec =
+                    let
+                        errorPrec3 = roundingError result3 / abs h
+                        errorPrec5 = roundingError result5 / abs h
+                    in
+                      max errorPrec3 errorPrec5 * abs (x / h)
 
                 result = scale (recip h) result5
 
@@ -119,10 +122,13 @@ forward f x h0 =
                 -- rounding error from the 4-point rule
                 error4 = 2 * 20.67 * sum (roundingError <$> fs)
 
-                roundingError2 = roundingError result2 / abs h
-                roundingError4 = roundingError result4 / abs h
                 -- rounding error due to finite precision in x + h = O(eps * x)
-                errorPrec = max roundingError2 roundingError4 * abs (x / h)
+                errorPrec =
+                    let
+                        errorPrec2 = roundingError result2 / abs h
+                        errorPrec4 = roundingError result4 / abs h
+                    in
+                      max errorPrec2 errorPrec4 * abs (x / h)
 
                 result = scale (recip h) result4
 
