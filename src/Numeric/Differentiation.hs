@@ -10,10 +10,24 @@ import Numeric.Errors
 import Scalar
 
 
+-- | Compute the derivative using the 5-point rule, evaluating the function
+-- at @x - h@, @x - h / 2@, @x + h / 2@, and @x + h@. (The central point is not
+-- used.)
+--
+-- Compute the error using the difference between the 5-point rule and the
+-- 3-point rule, evaluated at @x - h@, @x@, and @x + h@. (Again, the central
+-- point is not used. This actually overestimates the error.)
+--
+-- The function to be differentiated is taken not as one acting on scalar values,
+-- but as a function acting on a collection of values; this allows the caller to
+-- enforce any compatibility conditions between function evaluations.
 central :: ( Floating x, Ord x, Scalar x r, Error r ~ x
-           , Num r, RoundingError r, TruncationError r
-           ) =>
-           (forall t. Traversable t => t x -> t r) -> x -> x -> (r, x)
+           , Num r, RoundingError r, TruncationError r ) =>
+           (forall t. Traversable t => t x -> t r)
+           -- ^ the function to differentiate
+        -> x  -- ^ evaluate the derivative at @x@
+        -> x  -- ^ initial step size
+        -> (r, Error r)  -- ^ result and error
 central f x h0 =
     let
         scale_ s = scale (asTypeOf s x)
