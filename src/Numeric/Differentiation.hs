@@ -5,13 +5,13 @@
 
 module Numeric.Differentiation ( central ) where
 
-import Bounded
-import Rounded
+import Numeric.Errors
+
 import Scalar
 
 
-central :: ( BoundedAbove r, Bound r ~ x, Rounded r, BoundedAbove x
-           , Floating x, Ord x, Num r, Rounded x, Scalar x r
+central :: ( Floating x, Ord x, Scalar x r, Error r ~ x
+           , Num r, RoundingError r, TruncationError r
            ) =>
            (forall t. Traversable t => t x -> t r) -> x -> x -> (r, x)
 central f x h0 =
@@ -45,7 +45,7 @@ central f x h0 =
                 -- For safety, we estimate the error from result5 - result3,
                 -- which is O(h^2). Scaling h minimizes this estimated error,
                 -- not the actual truncation error.
-                errorTrunc = upperBound (result5 - result3) / abs h
+                errorTrunc = truncationError result5 result3 / abs h
 
                 -- Rounding error
                 errorRound = error5 / abs h + errorPrec
@@ -64,6 +64,6 @@ central f x h0 =
         errOpt = roundOpt + truncOpt
     in
       if (round0 < trunc0 && round0 > 0 && trunc0 > 0)
-             && (errOpt < err0 && upperBound (rOpt - r0) < 4.0 * err0)
+             && (errOpt < err0 && truncationError rOpt r0 < 4.0 * err0)
       then (rOpt, errOpt)
       else (r0, err0)
