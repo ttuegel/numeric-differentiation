@@ -16,27 +16,30 @@ central :: ( BoundedAbove r, Bound r ~ x, BoundedAbove x
            (forall t. Traversable t => t x -> t r) -> x -> x -> (r, x)
 central f x h0 =
     let
+        scale_ s = scale (asTypeOf s x)
         central_ h =
             let
                 [fm1, fmh, fph, fp1] = f [x - h, x - h / 2, x + h / 2, x + h]
 
                 -- result using 3-point rule
-                result3 = scale (asTypeOf 0.5 x) (fp1 - fm1)
+                result3 = scale_ 0.5 (fp1 - fm1)
 
                 -- result using 5-point rule
                 result5 =
-                    scale (asTypeOf 4.0 x / 3.0) (fph - fmh)
-                    - scale (asTypeOf 1.0 x / 3.0) result3
+                    scale_ (4.0 / 3.0) (fph - fmh) - scale_ (1.0 / 3.0) result3
+
+                upperError = rounded . upperBound
 
                 -- rounding error in 3-point rule
-                error3 = (rounded . upperBound) fp1 + (rounded . upperBound) fm1
+                error3 = upperError fp1 + upperError fm1
 
                 -- rounding error in 5-point rule
-                error5 = 2.0 * ((rounded . upperBound) fph + (rounded . upperBound) fmh) + error3
+                error5 = 2.0 * (upperError fph + upperError fmh) + error3
 
+                upperError3 = upperError result3
+                upperError5 = upperError result5
                 -- rounding error due to finite precision in x + h = O(eps * x)
-                errorPrec =
-                    max ((rounded . upperBound) result3) ((rounded . upperBound) result5) * abs (x / (h * h))
+                errorPrec = max upperError3 upperError5 * abs (x / (h * h))
 
                 result = scale (recip h) result5
 
