@@ -31,16 +31,15 @@ instance Traversable D where
 -- 3-point rule, evaluated at @x - h@, @x@, and @x + h@. (Again, the central
 -- point is not used. This actually overestimates the error.)
 --
--- The function to be differentiated is taken not as one acting on scalar values,
--- but as a function acting on a collection of values; this allows the caller to
--- enforce any compatibility conditions between function evaluations.
-central :: ( Floating x, Ord x
-           , Num r, Imprecise r, Precision r ~ x ) =>
+-- The function to be differentiated is taken as a function acting on a
+-- /collection/ of values; this allows the caller to enforce any compatibility
+-- conditions between function evaluations.
+central :: (Floating x, Num r, Imprecise r, Estimate r ~ x) =>
            (forall t. Traversable t => t x -> t r)
            -- ^ the function to differentiate
         -> x  -- ^ evaluate the derivative at @x@
         -> x  -- ^ initial step size
-        -> (r, Precision r)  -- ^ result and error
+        -> (r, Estimate r)  -- ^ result and error
 central f x h0 =
     let
         central_ h =
@@ -118,12 +117,12 @@ central f x h0 =
 -- but as a function acting on a collection of values; this allows the caller to
 -- enforce any compatibility conditions between function evaluations.
 forward :: ( Floating x, Ord x
-           , Num r, Imprecise r, Precision r ~ x ) =>
+           , Num r, Imprecise r, Estimate r ~ x ) =>
            (forall t. Traversable t => t x -> t r)
            -- ^ the function to differentiate
         -> x  -- ^ evaluate the derivative at @x@
         -> x  -- ^ initial step size
-        -> (r, Precision r)  -- ^ result and error
+        -> (r, Estimate r)  -- ^ result and error
 forward f x h0 =
     let
         scale_ s = scale (asTypeOf s x)
@@ -188,10 +187,10 @@ forward f x h0 =
       else (r0, err0)
 
 backward :: ( Floating x, Ord x
-            , Num r, Imprecise r, Precision r ~ x ) =>
+            , Num r, Imprecise r, Estimate r ~ x ) =>
             (forall t. Traversable t => t x -> t r)
                 -- ^ the function to differentiate
          -> x  -- ^ evaluate the derivative at @x@
          -> x  -- ^ initial step size
-         -> (r, Precision r)  -- ^ result and error
+         -> (r, Estimate r)  -- ^ result and error
 backward f x h0 = forward f x (negate h0)
