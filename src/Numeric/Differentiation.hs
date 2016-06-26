@@ -10,6 +10,21 @@ import Numeric.Errors
 import Scalar
 
 
+data D a = D !a !a !a !a
+
+instance Functor D where
+    fmap f (D a b c d) = D (f a) (f b) (f c) (f d)
+    {-# INLINE fmap #-}
+
+instance Foldable D where
+    foldr f z (D a b c d) = f a (f b (f c (f d z)))
+    {-# INLINE foldr #-}
+
+instance Traversable D where
+    traverse f (D a b c d) = D <$> f a <*> f b <*> f c <*> f d
+    {-# INLINE traverse #-}
+
+
 -- | Compute the derivative using the 5-point rule, evaluating the function
 -- at @x - h@, @x - h / 2@, @x + h / 2@, and @x + h@. (The central point is not
 -- used.)
@@ -33,7 +48,11 @@ central f x h0 =
         scale_ s = scale (asTypeOf s x)
         central_ h =
             let
-                [fm1, fmh, fph, fp1] = f [x - h, x - h / 2, x + h / 2, x + h]
+                D fm1 fmh fph fp1 =
+                    let
+                        points = D (x - h) (x - h / 2) (x + h / 2) (x + h)
+                    in
+                      f points
 
                 -- result using 3-point rule
                 result3 = scale_ 0.5 (fp1 - fm1)
@@ -108,8 +127,12 @@ forward f x h0 =
         scale_ s = scale (asTypeOf s x)
         forward_ h =
             let
-                fs@[f1, f2, f3, f4] =
-                    f [x + h / 4, x + h / 2, x + (3 / 4) * h, x + h]
+                fs@(D f1 f2 f3 f4) =
+                    let
+                        points =
+                            D (x + h / 4) (x + h / 2) (x + (3 / 4) * h) (x + h)
+                    in
+                      f points
 
                 -- result using 2-point rule
                 result2 = scale_ 2 (f4 - f2)
