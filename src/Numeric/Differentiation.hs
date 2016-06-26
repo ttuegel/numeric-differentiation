@@ -5,9 +5,7 @@
 
 module Numeric.Differentiation ( central ) where
 
-import Numeric.Errors
-
-import Scalar
+import Imprecise
 
 
 data D a = D !a !a !a !a
@@ -36,44 +34,29 @@ instance Traversable D where
 -- The function to be differentiated is taken not as one acting on scalar values,
 -- but as a function acting on a collection of values; this allows the caller to
 -- enforce any compatibility conditions between function evaluations.
-central :: ( Floating x, Ord x, Scalar x r, Error r ~ x
-           , Num r, RoundingError r, TruncationError r ) =>
+central :: ( Floating x, Ord x
+           , Num r, Imprecise r, Precision r ~ x ) =>
            (forall t. Traversable t => t x -> t r)
            -- ^ the function to differentiate
         -> x  -- ^ evaluate the derivative at @x@
         -> x  -- ^ initial step size
-        -> (r, Error r)  -- ^ result and error
+        -> (r, Precision r)  -- ^ result and error
 central f x h0 =
     let
-        scale_ s = scale (asTypeOf s x)
         central_ h =
             let
-                D fm1 fmh fph fp1 =
+                fs@(D fm1 fmh fph fp1) =
                     let
                         points = D (x - h) (x - h / 2) (x + h / 2) (x + h)
                     in
                       f points
 
                 -- result using 3-point rule
-                result3 = scale_ 0.5 (fp1 - fm1)
+                result3 = scale (1 / 2) (fp1 - fm1)
 
                 -- result using 5-point rule
-                result5 = scale_ (4.0 / 3.0) (fph - fmh)
-                          - scale_ (1.0 / 3.0) result3
-
-                -- rounding error in 3-point rule
-                error3 = roundingError fp1 + roundingError fm1
-
-                -- rounding error in 5-point rule
-                error5 = 2.0 * (roundingError fph + roundingError fmh) + error3
-
-                -- rounding error due to finite precision in x + h = O(eps * x)
-                errorPrec =
-                    let
-                        errorPrec3 = roundingError result3 / abs h
-                        errorPrec5 = roundingError result5 / abs h
-                    in
-                      max errorPrec3 errorPrec5 * abs (x / h)
+                result5 = scale (4 / 3) (fph - fmh)
+                          - scale (1 / 3) result3
 
                 result = scale (recip h) result5
 
@@ -81,13 +64,32 @@ central f x h0 =
                 -- For safety, we estimate the error from result5 - result3,
                 -- which is O(h^2). Scaling h minimizes this estimated error,
                 -- not the actual truncation error.
-                errorTrunc = truncationError result5 result3 / abs h
+                trunc = limiting (result5 - result3) / abs h
 
                 -- Rounding error
-                errorRound = error5 / abs h + errorPrec
+                round =
+                    let
+                        -- rounding error in 5-point rule
+                        rounding5 =
+                            let
+                                -- rounding error in each term of the result
+                                D rm1 rmh rph rp1 = precision <$> fs
+                            in
+                              2 * (rph + rmh) + rp1 + rm1
+
+                        -- rounding error due to finite precision in
+                        -- x + h = O(eps * x)
+                        prec =
+                            let
+                                prec3 = precision result3 / abs h
+                                prec5 = precision result5 / abs h
+                            in
+                              max prec3 prec5 * abs (x / h)
+                    in
+                      rounding5 / abs h + prec
 
             in
-              (result, errorTrunc, errorRound)
+              (result, trunc, round)
 
         (r0, trunc0, round0) = central_ h0
         err0 = round0 + trunc0
@@ -100,7 +102,7 @@ central f x h0 =
         errOpt = roundOpt + truncOpt
     in
       if (round0 < trunc0 && round0 > 0 && trunc0 > 0)
-             && (errOpt < err0 && truncationError rOpt r0 < 4.0 * err0)
+             && (errOpt < err0 && limiting (rOpt - r0) < 4.0 * err0)
       then (rOpt, errOpt)
       else (r0, err0)
 
@@ -115,13 +117,13 @@ central f x h0 =
 -- The function to be differentiated is taken not as one acting on scalar values,
 -- but as a function acting on a collection of values; this allows the caller to
 -- enforce any compatibility conditions between function evaluations.
-forward :: ( Floating x, Ord x, Scalar x r, Error r ~ x
-           , Num r, RoundingError r, TruncationError r ) =>
+forward :: ( Floating x, Ord x
+           , Num r, Imprecise r, Precision r ~ x ) =>
            (forall t. Traversable t => t x -> t r)
            -- ^ the function to differentiate
         -> x  -- ^ evaluate the derivative at @x@
         -> x  -- ^ initial step size
-        -> (r, Error r)  -- ^ result and error
+        -> (r, Precision r)  -- ^ result and error
 forward f x h0 =
     let
         scale_ s = scale (asTypeOf s x)
@@ -142,30 +144,33 @@ forward f x h0 =
                           - scale_ (62 / 3) (f3 - f2)
                           + scale_ (52 / 3) (f2 - f1)
 
-                -- rounding error from the 4-point rule
-                error4 = 2 * 20.67 * sum (roundingError <$> fs)
-
-                -- rounding error due to finite precision in x + h = O(eps * x)
-                errorPrec =
-                    let
-                        errorPrec2 = roundingError result2 / abs h
-                        errorPrec4 = roundingError result4 / abs h
-                    in
-                      max errorPrec2 errorPrec4 * abs (x / h)
-
                 result = scale (recip h) result4
 
                 -- The truncation error in the @result4@ approximation itself is
                 -- O(h^3). For safety, we estimate the error from
-                -- @truncationError result4 result2@, which is O(h). By
+                -- @result4 - result2@, which is O(h). By
                 -- scaling @h@ we will minimize this estimated error, not
                 -- the actual error in @result4@.
-                errorTrunc = truncationError result4 result2 / abs h
+                trunc = limiting (result4 - result2) / abs h
 
                 -- Rounding error
-                errorRound = error4 / abs h + errorPrec
+                round =
+                    let
+                        -- rounding error from the 4-point rule
+                        error4 = 2 * 20.67 * sum (precision <$> fs)
+
+                        -- rounding error due to finite precision in
+                        -- x + h = O(eps * x)
+                        prec =
+                            let
+                                prec2 = precision result2 / abs h
+                                prec4 = precision result4 / abs h
+                            in
+                              max prec2 prec4 * abs (x / h)
+                    in
+                      error4 / abs h + prec
             in
-              (result, errorTrunc, errorRound)
+              (result, trunc, round)
 
         (r0, trunc0, round0) = forward_ h0
         err0 = round0 + trunc0
@@ -178,15 +183,15 @@ forward f x h0 =
         errOpt = roundOpt + truncOpt
     in
       if (round0 < trunc0 && round0 > 0 && trunc0 > 0)
-             && (errOpt < err0 && truncationError rOpt r0 < 4.0 * err0)
+             && (errOpt < err0 && limiting (rOpt - r0) < 4.0 * err0)
       then (rOpt, errOpt)
       else (r0, err0)
 
-backward :: ( Floating x, Ord x, Scalar x r, Error r ~ x
-            , Num r, RoundingError r, TruncationError r ) =>
+backward :: ( Floating x, Ord x
+            , Num r, Imprecise r, Precision r ~ x ) =>
             (forall t. Traversable t => t x -> t r)
                 -- ^ the function to differentiate
          -> x  -- ^ evaluate the derivative at @x@
          -> x  -- ^ initial step size
-         -> (r, Error r)  -- ^ result and error
+         -> (r, Precision r)  -- ^ result and error
 backward f x h0 = forward f x (negate h0)
