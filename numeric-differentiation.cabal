@@ -15,7 +15,6 @@ cabal-version:       >=1.10
 library
   exposed-modules:
     Numeric.Differentiation
-    Scalar
   other-extensions:
     FlexibleContexts
     MultiParamTypeClasses
