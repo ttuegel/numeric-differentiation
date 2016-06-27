@@ -5,7 +5,7 @@
 
 module Numeric.Differentiation ( central ) where
 
-import Imprecise
+import Tolerance
 
 
 data D a = D !a !a !a !a
@@ -34,13 +34,14 @@ instance Traversable D where
 -- The function to be differentiated is taken as a function acting on a
 -- /collection/ of values; this allows the caller to enforce any compatibility
 -- conditions between function evaluations.
-central :: (Floating x, Num r, Imprecise r, Estimate r ~ x) =>
-           (forall t. Traversable t => t x -> t r)
-           -- ^ the function to differentiate
+central :: (Floating x, Accuracy r, Num r, Precision r, Tol r ~ x) =>
+           (x -> r -> r)  -- ^ scalar multiplication
+        -> (forall t. Traversable t => t x -> t r)
+            -- ^ the function to differentiate
         -> x  -- ^ evaluate the derivative at @x@
         -> x  -- ^ initial step size
-        -> (r, Estimate r)  -- ^ result and error
-central f x h0 =
+        -> (r, Tol r)  -- ^ result and error
+central scale f x h0 =
     let
         central_ h =
             let
@@ -63,7 +64,7 @@ central f x h0 =
                 -- For safety, we estimate the error from result5 - result3,
                 -- which is O(h^2). Scaling h minimizes this estimated error,
                 -- not the actual truncation error.
-                trunc = limiting (result5 - result3) / abs h
+                trunc = accuracy result5 result3 / abs h
 
                 -- Rounding error
                 round =
@@ -101,7 +102,7 @@ central f x h0 =
         errOpt = roundOpt + truncOpt
     in
       if (round0 < trunc0 && round0 > 0 && trunc0 > 0)
-             && (errOpt < err0 && limiting (rOpt - r0) < 4.0 * err0)
+             && (errOpt < err0 && accuracy rOpt r0 < 4.0 * err0)
       then (rOpt, errOpt)
       else (r0, err0)
 
@@ -116,16 +117,15 @@ central f x h0 =
 -- The function to be differentiated is taken not as one acting on scalar values,
 -- but as a function acting on a collection of values; this allows the caller to
 -- enforce any compatibility conditions between function evaluations.
-forward :: ( Floating x, Ord x
-           , Num r, Imprecise r, Estimate r ~ x ) =>
-           (forall t. Traversable t => t x -> t r)
+forward :: (Floating x, Accuracy r, Num r, Precision r, Tol r ~ x) =>
+           (x -> r -> r)  -- ^ scalar multiplication
+        -> (forall t. Traversable t => t x -> t r)
            -- ^ the function to differentiate
         -> x  -- ^ evaluate the derivative at @x@
         -> x  -- ^ initial step size
-        -> (r, Estimate r)  -- ^ result and error
-forward f x h0 =
+        -> (r, Tol r)  -- ^ result and error
+forward scale f x h0 =
     let
-        scale_ s = scale (asTypeOf s x)
         forward_ h =
             let
                 fs@(D f1 f2 f3 f4) =
@@ -136,12 +136,12 @@ forward f x h0 =
                       f points
 
                 -- result using 2-point rule
-                result2 = scale_ 2 (f4 - f2)
+                result2 = scale 2 (f4 - f2)
 
                 -- result using 4-point rule
-                result4 = scale_ (22 / 3) (f4 - f3)
-                          - scale_ (62 / 3) (f3 - f2)
-                          + scale_ (52 / 3) (f2 - f1)
+                result4 = scale (22 / 3) (f4 - f3)
+                          - scale (62 / 3) (f3 - f2)
+                          + scale (52 / 3) (f2 - f1)
 
                 result = scale (recip h) result4
 
@@ -150,7 +150,7 @@ forward f x h0 =
                 -- @result4 - result2@, which is O(h). By
                 -- scaling @h@ we will minimize this estimated error, not
                 -- the actual error in @result4@.
-                trunc = limiting (result4 - result2) / abs h
+                trunc = accuracy result4 result2 / abs h
 
                 -- Rounding error
                 round =
@@ -182,15 +182,16 @@ forward f x h0 =
         errOpt = roundOpt + truncOpt
     in
       if (round0 < trunc0 && round0 > 0 && trunc0 > 0)
-             && (errOpt < err0 && limiting (rOpt - r0) < 4.0 * err0)
+             && (errOpt < err0 && accuracy rOpt r0 < 4.0 * err0)
       then (rOpt, errOpt)
       else (r0, err0)
 
-backward :: ( Floating x, Ord x
-            , Num r, Imprecise r, Estimate r ~ x ) =>
-            (forall t. Traversable t => t x -> t r)
+backward :: (Floating x, Accuracy r, Num r, Precision r, Tol r ~ x) =>
+            (x -> r -> r)  -- ^ scalar multiplication
+         -> (forall t. Traversable t => t x -> t r)
                 -- ^ the function to differentiate
          -> x  -- ^ evaluate the derivative at @x@
          -> x  -- ^ initial step size
-         -> (r, Estimate r)  -- ^ result and error
-backward f x h0 = forward f x (negate h0)
+         -> (r, Tol r)  -- ^ result and error
+backward scale f x h0 =
+    forward scale f x (negate h0)
