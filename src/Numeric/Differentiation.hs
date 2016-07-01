@@ -30,14 +30,9 @@ instance Traversable D where
 -- Compute the error using the difference between the 5-point rule and the
 -- 3-point rule, evaluated at @x - h@, @x@, and @x + h@. (Again, the central
 -- point is not used. This actually overestimates the error.)
---
--- The function to be differentiated is taken as a function acting on a
--- /collection/ of values; this allows the caller to enforce any compatibility
--- conditions between function evaluations.
 central :: (Floating x, Accuracy r, Num r, Precision r, Tol r ~ x) =>
            (x -> r -> r)  -- ^ scalar multiplication
-        -> (forall t. Traversable t => t x -> t r)
-            -- ^ the function to differentiate
+        -> (x -> r)  -- ^ the function to differentiate
         -> x  -- ^ evaluate the derivative at @x@
         -> x  -- ^ initial step size
         -> (r, Tol r)  -- ^ result and error
@@ -49,7 +44,7 @@ central scale f x h0 =
                     let
                         points = D (x - h) (x - h / 2) (x + h / 2) (x + h)
                     in
-                      f points
+                      f <$> points
 
                 -- result using 3-point rule
                 result3 = scale (1 / 2) (fp1 - fm1)
@@ -113,14 +108,9 @@ central scale f x h0 =
 -- Compute the error using the difference between the 4-point rule and the
 -- 2-point rule, evaluated at @x + h / 2@, and @x + h@. (This actually
 -- overestimates the error.)
---
--- The function to be differentiated is taken not as one acting on scalar values,
--- but as a function acting on a collection of values; this allows the caller to
--- enforce any compatibility conditions between function evaluations.
 forward :: (Floating x, Accuracy r, Num r, Precision r, Tol r ~ x) =>
            (x -> r -> r)  -- ^ scalar multiplication
-        -> (forall t. Traversable t => t x -> t r)
-           -- ^ the function to differentiate
+        -> (x -> r)  -- ^ the function to differentiate
         -> x  -- ^ evaluate the derivative at @x@
         -> x  -- ^ initial step size
         -> (r, Tol r)  -- ^ result and error
@@ -133,7 +123,7 @@ forward scale f x h0 =
                         points =
                             D (x + h / 4) (x + h / 2) (x + (3 / 4) * h) (x + h)
                     in
-                      f points
+                      f <$> points
 
                 -- result using 2-point rule
                 result2 = scale 2 (f4 - f2)
@@ -188,8 +178,7 @@ forward scale f x h0 =
 
 backward :: (Floating x, Accuracy r, Num r, Precision r, Tol r ~ x) =>
             (x -> r -> r)  -- ^ scalar multiplication
-         -> (forall t. Traversable t => t x -> t r)
-                -- ^ the function to differentiate
+         -> (x -> r)  -- ^ the function to differentiate
          -> x  -- ^ evaluate the derivative at @x@
          -> x  -- ^ initial step size
          -> (r, Tol r)  -- ^ result and error
